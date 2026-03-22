@@ -7,10 +7,17 @@ class AIFAQ_AI_Generator {
 
 	private $api_key;
 	private $model;
+	private $api_url;
 
 	public function __construct() {
 		$this->api_key = get_option( 'aifaq_api_key', '' );
 		$this->model   = get_option( 'aifaq_model', 'gpt-4o-mini' );
+		// Auto-detect OpenRouter vs OpenAI based on key prefix
+		if ( strpos( $this->api_key, 'sk-or-' ) === 0 ) {
+			$this->api_url = 'https://openrouter.ai/api/v1/chat/completions';
+		} else {
+			$this->api_url = 'https://api.openai.com/v1/chat/completions';
+		}
 	}
 
 	/**
@@ -75,15 +82,10 @@ class AIFAQ_AI_Generator {
 	private function build_prompt( $content, $count, $title ) {
 		$system = 'You are an SEO expert who writes clear, helpful FAQ content for websites. Always respond in valid JSON only — no markdown fences, no extra text.';
 
-		$user = sprintf(
-			'Read the following content from a page titled "%1$s" and generate exactly %2$d frequently asked questions with detailed answers. ' .
+		$user = 'Read the following content from a page titled "' . $title . '" and generate exactly ' . $count . ' frequently asked questions with detailed answers. ' .
 			'Return ONLY a JSON array in this format: [{"question": "...", "answer": "..."}, ...]. ' .
 			'Rules: (1) Questions must be things real users would search for. (2) Answers must be 1–3 sentences, factual, and based on the content. (3) No fluff. (4) Do not number the questions.' .
-			"\n\nContent:\n%3$s",
-			$title,
-			$count,
-			$content
-		);
+			"\n\nContent:\n" . $content;
 
 		return array(
 			'system' => $system,
@@ -106,7 +108,7 @@ class AIFAQ_AI_Generator {
 		);
 
 		$response = wp_remote_post(
-			'https://api.openai.com/v1/chat/completions',
+			$this->api_url,
 			array(
 				'timeout' => 60,
 				'headers' => array(
