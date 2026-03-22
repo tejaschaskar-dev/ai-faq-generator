@@ -1,0 +1,145 @@
+/* AI FAQ Generator — Frontend Styles */
+
+.aifaq-section {
+	margin: 2.5em 0;
+	font-family: inherit;
+}
+
+.aifaq-section-title {
+	font-size: 1.5em;
+	font-weight: 700;
+	margin-bottom: 1em;
+	color: inherit;
+}
+
+.aifaq-list {
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+/* ── Accordion ────────────────────────── */
+.aifaq-style-accordion .aifaq-item {
+	border-bottom: 1px solid #e5e7eb;
+}
+.aifaq-style-accordion .aifaq-item:last-child {
+	border-bottom: none;
+}
+
+.aifaq-accordion-trigger {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background: #fff;
+	border: none;
+	padding: 1em 1.25em;
+	cursor: pointer;
+	text-align: left;
+	gap: 12px;
+	transition: background 0.15s ease;
+}
+.aifaq-accordion-trigger:hover {
+	background: #f9fafb;
+}
+.aifaq-accordion-trigger[aria-expanded="true"] {
+	background: #f3f4f6;
+}
+
+.aifaq-question-text {
+	margin: 0;
+	font-size: 1em;
+	font-weight: 600;
+	color: #111827;
+	line-height: 1.5;
+}
+
+.aifaq-icon {
+	flex-shrink: 0;
+	color: #6b7280;
+	transition: transform 0.2s ease;
+	display: flex;
+	align-items: center;
+}
+.aifaq-accordion-trigger[aria-expanded="true"] .aifaq-icon {
+	transform: rotate(180deg);
+}
+
+/* Answer panel */
+.aifaq-answer {
+	background: #f9fafb;
+	overflow: hidden;
+	transition: max-height 0.25s ease, padding 0.25s ease;
+}
+.aifaq-answer[hidden] {
+	display: block !important; /* override native hidden so transition works */
+	max-height: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+	visibility: hidden;
+}
+.aifaq-answer.is-open {
+	max-height: 600px;
+	visibility: visible;
+}
+
+.aifaq-answer-inner {
+	padding: 1em 1.25em;
+	color: #374151;
+	line-height: 1.7;
+	font-size: 0.95em;
+}
+
+/* ── Plain list ───────────────────────── */
+.aifaq-style-list .aifaq-item {
+	padding: 1em 1.25em;
+	border-bottom: 1px solid #e5e7eb;
+}
+.aifaq-style-list .aifaq-item:last-child {
+	border-bottom: none;
+}
+
+.aifaq-question-plain {
+	margin: 0 0 0.4em;
+	font-size: 1em;
+	font-weight: 600;
+	color: #111827;
+}
+
+.aifaq-answer-plain {
+	color: #374151;
+	line-height: 1.7;
+	font-size: 0.95em;
+	margin: 0;
+}
+
+/* ── Dark mode support ────────────────── */
+@media (prefers-color-scheme: dark) {
+	.aifaq-list {
+		border-color: #374151;
+	}
+	.aifaq-accordion-trigger {
+		background: #1f2937;
+	}
+	.aifaq-accordion-trigger:hover,
+	.aifaq-accordion-trigger[aria-expanded="true"] {
+		background: #111827;
+	}
+	.aifaq-question-text,
+	.aifaq-question-plain {
+		color: #f3f4f6;
+	}
+	.aifaq-answer,
+	.aifaq-style-list .aifaq-item {
+		background: #111827;
+	}
+	.aifaq-answer-inner,
+	.aifaq-answer-plain {
+		color: #d1d5db;
+	}
+	.aifaq-list,
+	.aifaq-style-accordion .aifaq-item,
+	.aifaq-style-list .aifaq-item {
+		border-color: #374151;
+	}
+}

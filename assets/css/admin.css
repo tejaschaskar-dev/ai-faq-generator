@@ -1,0 +1,140 @@
+/* AI FAQ Generator — Admin Styles */
+
+.aifaq-metabox-wrap {
+	padding: 4px 0;
+}
+
+/* Toolbar */
+.aifaq-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 10px;
+	padding: 10px 0 14px;
+	border-bottom: 1px solid #ddd;
+	margin-bottom: 14px;
+}
+
+.aifaq-toolbar-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.aifaq-count-label {
+	font-weight: 600;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.aifaq-count-input {
+	width: 56px !important;
+}
+
+#aifaq-generate-btn .dashicons,
+#aifaq-delete-btn   .dashicons {
+	vertical-align: middle;
+	margin-top: -2px;
+	margin-right: 2px;
+}
+
+#aifaq-generate-btn {
+	background: #2271b1;
+	border-color: #2271b1;
+	color: #fff;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+#aifaq-generate-btn:hover {
+	background: #135e96;
+	border-color: #135e96;
+}
+#aifaq-generate-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+/* Status */
+.aifaq-status {
+	padding: 10px 14px;
+	border-radius: 4px;
+	margin-bottom: 12px;
+	font-size: 13px;
+}
+.aifaq-status.is-loading { background: #f0f6fc; border: 1px solid #b3d7f7; color: #0a4b78; }
+.aifaq-status.is-error   { background: #fef0f0; border: 1px solid #f5a9a9; color: #8a1f1f; }
+.aifaq-status.is-success { background: #edfaef; border: 1px solid #92e0a1; color: #1d6a2b; }
+
+/* Spinner inside status */
+.aifaq-status.is-loading::before {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border: 2px solid #b3d7f7;
+	border-top-color: #0a4b78;
+	border-radius: 50%;
+	animation: aifaq-spin 0.7s linear infinite;
+	margin-right: 8px;
+	vertical-align: middle;
+}
+@keyframes aifaq-spin { to { transform: rotate(360deg); } }
+
+/* Placeholder */
+.aifaq-placeholder {
+	color: #888;
+	font-style: italic;
+	margin: 10px 0;
+}
+
+/* FAQ rows */
+.aifaq-faq-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 10px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+.aifaq-faq-row:last-child { border-bottom: none; }
+
+.aifaq-faq-handle {
+	cursor: grab;
+	color: #aaa;
+	padding-top: 6px;
+	flex-shrink: 0;
+}
+.aifaq-faq-handle:active { cursor: grabbing; }
+
+.aifaq-faq-fields {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.aifaq-question-input {
+	font-weight: 600;
+}
+
+.aifaq-answer-input {
+	font-size: 13px;
+	color: #3c434a;
+	resize: vertical;
+}
+
+.aifaq-remove-row {
+	color: #d63638 !important;
+	flex-shrink: 0;
+	padding-top: 6px;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
+.aifaq-remove-row:hover { color: #a02020 !important; }
+
+/* Add row */
+#aifaq-add-btn {
+	margin-top: 4px;
+}

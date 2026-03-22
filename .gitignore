@@ -1,0 +1,19 @@
+# WordPress
+*.log
+.DS_Store
+Thumbs.db
+
+# Node (if any tooling added later)
+node_modules/
+package-lock.json
+
+# Build artifacts
+*.zip
+/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# Local config
+*.local.php
