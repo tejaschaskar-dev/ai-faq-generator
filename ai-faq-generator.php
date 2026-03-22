@@ -3,7 +3,7 @@
  * Plugin Name:  AI FAQ Generator
  * Plugin URI:   https://example.com/ai-faq-generator
  * Description:  Automatically generate SEO-optimized FAQs with JSON-LD schema for any post, page, or WooCommerce product using AI.
- * Version:      1.0.0
+ * Version:      1.1.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author:       Tejas
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AIFAQ_VERSION', '1.0.0' );
+define( 'AIFAQ_VERSION', '1.1.0' );
 define( 'AIFAQ_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AIFAQ_URL', plugin_dir_url( __FILE__ ) );
 define( 'AIFAQ_BASENAME', plugin_basename( __FILE__ ) );
@@ -45,6 +45,7 @@ function aifaq_activate() {
 		'api_key'         => '',
 		'model'           => 'gpt-4o-mini',
 		'faq_count'       => 5,
+		'tone'            => 'neutral',
 		'post_types'      => array( 'post', 'page' ),
 		'display_style'   => 'accordion',
 		'auto_display'    => '1',

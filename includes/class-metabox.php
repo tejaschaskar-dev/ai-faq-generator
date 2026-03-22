@@ -9,7 +9,8 @@ class AIFAQ_Metabox {
 		add_action( 'add_meta_boxes', array( $this, 'register' ) );
 		add_action( 'save_post',      array( $this, 'save' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
-		add_action( 'wp_ajax_aifaq_generate', array( $this, 'ajax_generate' ) );
+		add_action( 'wp_ajax_aifaq_generate',      array( $this, 'ajax_generate' ) );
+		add_action( 'wp_ajax_aifaq_bulk_generate', array( $this, 'ajax_bulk_generate' ) );
 	}
 
 	public function register() {
@@ -53,9 +54,10 @@ class AIFAQ_Metabox {
 			'ajax_url' => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'aifaq_generate' ),
 			'i18n'     => array(
-				'generating'  => __( 'Generating FAQs…', 'ai-faq-generator' ),
-				'error'       => __( 'Error: ', 'ai-faq-generator' ),
-				'confirm_del' => __( 'Delete all FAQs for this post?', 'ai-faq-generator' ),
+				'generating'   => __( 'Generating FAQs…', 'ai-faq-generator' ),
+				'error'        => __( 'Error: ', 'ai-faq-generator' ),
+				'confirm_del'  => __( 'Delete all FAQs for this post?', 'ai-faq-generator' ),
+				'confirm_regen'=> __( 'This will replace all existing FAQs. Continue?', 'ai-faq-generator' ),
 			),
 		) );
 	}
@@ -67,6 +69,15 @@ class AIFAQ_Metabox {
 		$faq_count = (int) get_option( 'aifaq_faq_count', 5 );
 		$enabled   = get_post_meta( $post->ID, '_aifaq_enabled', true );
 		$enabled   = ( '' === $enabled ) ? '1' : $enabled; // default on
+		$post_tone = get_post_meta( $post->ID, '_aifaq_tone', true );
+		$post_tone = $post_tone ? $post_tone : get_option( 'aifaq_tone', 'neutral' );
+		$tones     = array(
+			'neutral'   => __( 'Neutral', 'ai-faq-generator' ),
+			'formal'    => __( 'Formal & Professional', 'ai-faq-generator' ),
+			'simple'    => __( 'Simple & Easy', 'ai-faq-generator' ),
+			'friendly'  => __( 'Friendly & Conversational', 'ai-faq-generator' ),
+			'technical' => __( 'Technical & Detailed', 'ai-faq-generator' ),
+		);
 		?>
 		<div class="aifaq-metabox-wrap">
 
@@ -78,14 +89,25 @@ class AIFAQ_Metabox {
 					</label>
 				</div>
 				<div class="aifaq-toolbar-right">
+					<label for="aifaq_tone_override" class="aifaq-count-label">
+						<?php esc_html_e( 'Tone:', 'ai-faq-generator' ); ?>
+					</label>
+					<select id="aifaq_tone_override" class="aifaq-tone-select">
+						<?php foreach ( $tones as $value => $label ) : ?>
+							<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $post_tone, $value ); ?>>
+								<?php echo esc_html( $label ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+
 					<label for="aifaq_count_override" class="aifaq-count-label">
 						<?php esc_html_e( 'FAQs:', 'ai-faq-generator' ); ?>
 					</label>
 					<input type="number" id="aifaq_count_override" min="1" max="20" value="<?php echo esc_attr( $faq_count ); ?>" class="aifaq-count-input" />
 
-					<button type="button" id="aifaq-generate-btn" class="button button-primary" data-post-id="<?php echo esc_attr( $post->ID ); ?>">
+					<button type="button" id="aifaq-generate-btn" class="button button-primary" data-post-id="<?php echo esc_attr( $post->ID ); ?>" data-has-faqs="<?php echo ! empty( $faqs ) ? '1' : '0'; ?>">
 						<span class="dashicons dashicons-superhero-alt"></span>
-						<?php esc_html_e( 'Generate FAQs', 'ai-faq-generator' ); ?>
+						<?php echo empty( $faqs ) ? esc_html__( 'Generate FAQs', 'ai-faq-generator' ) : esc_html__( 'Regenerate FAQs', 'ai-faq-generator' ); ?>
 					</button>
 
 					<?php if ( ! empty( $faqs ) ) : ?>
@@ -167,6 +189,15 @@ class AIFAQ_Metabox {
 		$enabled = isset( $_POST['aifaq_enabled'] ) ? '1' : '0';
 		update_post_meta( $post_id, '_aifaq_enabled', $enabled );
 
+		// Save tone.
+		if ( isset( $_POST['aifaq_tone'] ) ) {
+			$allowed_tones = array( 'neutral', 'formal', 'simple', 'friendly', 'technical' );
+			$tone = sanitize_text_field( wp_unslash( $_POST['aifaq_tone'] ) );
+			if ( in_array( $tone, $allowed_tones, true ) ) {
+				update_post_meta( $post_id, '_aifaq_tone', $tone );
+			}
+		}
+
 		// Save FAQ rows.
 		if ( isset( $_POST['aifaq_faqs'] ) && is_array( $_POST['aifaq_faqs'] ) ) {
 			$raw  = wp_unslash( $_POST['aifaq_faqs'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
@@ -193,6 +224,7 @@ class AIFAQ_Metabox {
 
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
 		$count   = isset( $_POST['count'] )   ? absint( $_POST['count'] )   : null;
+		$tone    = isset( $_POST['tone'] )    ? sanitize_text_field( wp_unslash( $_POST['tone'] ) ) : null;
 
 		if ( ! $post_id ) {
 			wp_send_json_error( __( 'Invalid post ID.', 'ai-faq-generator' ) );
@@ -200,16 +232,61 @@ class AIFAQ_Metabox {
 
 		require_once AIFAQ_PATH . 'includes/class-ai-generator.php';
 		$generator = new AIFAQ_AI_Generator();
-		$result    = $generator->generate( $post_id, $count );
+		$result    = $generator->generate( $post_id, $count, $tone );
 
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( $result->get_error_message() );
 		}
 
-		// Persist generated FAQs immediately.
+		// Persist generated FAQs and tone.
 		update_post_meta( $post_id, '_aifaq_data', $result );
 		update_post_meta( $post_id, '_aifaq_enabled', '1' );
+		if ( $tone ) {
+			update_post_meta( $post_id, '_aifaq_tone', $tone );
+		}
 
 		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX: Bulk generate FAQs for a single post (called repeatedly from bulk generate page).
+	 */
+	public function ajax_bulk_generate() {
+		check_ajax_referer( 'aifaq_generate', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( __( 'Insufficient permissions.', 'ai-faq-generator' ) );
+		}
+
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+		$count   = isset( $_POST['count'] )   ? absint( $_POST['count'] )   : null;
+		$tone    = isset( $_POST['tone'] )    ? sanitize_text_field( wp_unslash( $_POST['tone'] ) ) : null;
+
+		if ( ! $post_id ) {
+			wp_send_json_error( __( 'Invalid post ID.', 'ai-faq-generator' ) );
+		}
+
+		require_once AIFAQ_PATH . 'includes/class-ai-generator.php';
+		$generator = new AIFAQ_AI_Generator();
+		$result    = $generator->generate( $post_id, $count, $tone );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array(
+				'post_id' => $post_id,
+				'message' => $result->get_error_message(),
+			) );
+		}
+
+		update_post_meta( $post_id, '_aifaq_data', $result );
+		update_post_meta( $post_id, '_aifaq_enabled', '1' );
+		if ( $tone ) {
+			update_post_meta( $post_id, '_aifaq_tone', $tone );
+		}
+
+		wp_send_json_success( array(
+			'post_id' => $post_id,
+			'title'   => get_the_title( $post_id ),
+			'count'   => count( $result ),
+		) );
 	}
 }

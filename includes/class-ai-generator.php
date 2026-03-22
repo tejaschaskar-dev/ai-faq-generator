@@ -27,9 +27,9 @@ class AIFAQ_AI_Generator {
 	 * @param int $count  Number of Q&A pairs to generate.
 	 * @return array|WP_Error  Array of ['question'=>'...','answer'=>'...'] or WP_Error.
 	 */
-	public function generate( $post_id, $count = null ) {
+	public function generate( $post_id, $count = null, $tone = null ) {
 		if ( empty( $this->api_key ) ) {
-			return new WP_Error( 'no_api_key', __( 'OpenAI API key is not configured. Please add it in Settings → AI FAQ Generator.', 'ai-faq-generator' ) );
+			return new WP_Error( 'no_api_key', __( 'API key is not configured. Please add it in Settings → AI FAQ Generator.', 'ai-faq-generator' ) );
 		}
 
 		$post = get_post( $post_id );
@@ -42,12 +42,16 @@ class AIFAQ_AI_Generator {
 		}
 		$count = max( 1, min( 20, (int) $count ) );
 
+		if ( null === $tone ) {
+			$tone = get_option( 'aifaq_tone', 'neutral' );
+		}
+
 		$content = $this->prepare_content( $post );
 		if ( empty( trim( $content ) ) ) {
 			return new WP_Error( 'empty_content', __( 'Post has no readable content to generate FAQs from.', 'ai-faq-generator' ) );
 		}
 
-		$prompt = $this->build_prompt( $content, $count, $post->post_title );
+		$prompt = $this->build_prompt( $content, $count, $post->post_title, $tone );
 
 		$response = $this->call_openai( $prompt );
 		if ( is_wp_error( $response ) ) {
@@ -79,10 +83,20 @@ class AIFAQ_AI_Generator {
 	/**
 	 * Build the structured system + user prompt.
 	 */
-	private function build_prompt( $content, $count, $title ) {
+	private function build_prompt( $content, $count, $title, $tone = 'neutral' ) {
+		$tone_map = array(
+			'neutral'   => 'Use a neutral, informative tone.',
+			'formal'    => 'Use a formal and professional tone suitable for business websites.',
+			'simple'    => 'Use simple, easy-to-understand language suitable for beginners. Avoid technical jargon.',
+			'friendly'  => 'Use a friendly, conversational tone as if speaking directly to the reader.',
+			'technical' => 'Use a technical, detailed tone suitable for developers and experts.',
+		);
+		$tone_instruction = isset( $tone_map[ $tone ] ) ? $tone_map[ $tone ] : $tone_map['neutral'];
+
 		$system = 'You are an SEO expert who writes clear, helpful FAQ content for websites. Always respond in valid JSON only — no markdown fences, no extra text.';
 
 		$user = 'Read the following content from a page titled "' . $title . '" and generate exactly ' . $count . ' frequently asked questions with detailed answers. ' .
+			$tone_instruction . ' ' .
 			'Return ONLY a JSON array in this format: [{"question": "...", "answer": "..."}, ...]. ' .
 			'Rules: (1) Questions must be things real users would search for. (2) Answers must be 1–3 sentences, factual, and based on the content. (3) No fluff. (4) Do not number the questions.' .
 			"\n\nContent:\n" . $content;

@@ -54,7 +54,14 @@
 	function handleGenerate() {
 		var $btn    = $('#aifaq-generate-btn');
 		var postId  = $btn.data('post-id');
+		var hasFaqs = $btn.data('has-faqs') === 1 || $btn.data('has-faqs') === '1';
 		var count   = parseInt($('#aifaq_count_override').val(), 10) || 5;
+		var tone    = $('#aifaq_tone_override').val() || 'neutral';
+
+		// Ask confirmation before regenerating existing FAQs
+		if (hasFaqs && !window.confirm(AIFAQ.i18n.confirm_regen)) {
+			return;
+		}
 
 		setStatus('loading', AIFAQ.i18n.generating);
 		$btn.prop('disabled', true);
@@ -64,6 +71,7 @@
 			nonce:   AIFAQ.nonce,
 			post_id: postId,
 			count:   count,
+			tone:    tone,
 		})
 		.done(function (res) {
 			if (res.success && Array.isArray(res.data)) {
@@ -100,6 +108,10 @@
 		});
 
 		$('#aifaq-add-row').show();
+
+		// Update generate button to say "Regenerate"
+		$('#aifaq-generate-btn').data('has-faqs', '1').find('.dashicons').nextAll().remove();
+		$('#aifaq-generate-btn').append(' Regenerate FAQs');
 
 		// Show delete button
 		if (!$('#aifaq-delete-btn').length) {
