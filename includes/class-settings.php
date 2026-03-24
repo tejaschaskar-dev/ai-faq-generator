@@ -69,24 +69,56 @@ class AIFAQ_Settings {
 
 		$all_post_types = get_post_types( array( 'public' => true ), 'objects' );
 
-		// OpenAI models
-		$models = array(
-			'gpt-4o-mini'   => '⚡ GPT-4o Mini — Fast & cheap (OpenAI) ~$0.001/generation',
-			'gpt-4o'        => '🏆 GPT-4o — Best quality (OpenAI) ~$0.01/generation',
-			'gpt-3.5-turbo' => '💰 GPT-3.5 Turbo — Budget (OpenAI) ~$0.0005/generation',
+		// Detect provider from key prefix
+		$provider = 'openai';
+		if ( strpos( $api_key, 'sk-or-' ) === 0 ) {
+			$provider = 'openrouter';
+		} elseif ( strpos( $api_key, 'AIza' ) === 0 ) {
+			$provider = 'gemini';
+		} elseif ( strpos( $api_key, 'gsk_' ) === 0 ) {
+			$provider = 'groq';
+		}
+
+		$models_by_provider = array(
+			'openai'     => array(
+				'gpt-4o-mini'   => '⚡ GPT-4o Mini — Fast & cheap ~$0.001/generation',
+				'gpt-4o'        => '🏆 GPT-4o — Best quality ~$0.01/generation',
+				'gpt-3.5-turbo' => '💰 GPT-3.5 Turbo — Budget ~$0.0005/generation',
+			),
+			'openrouter' => array(
+				'openai/gpt-4o-mini'                  => '⚡ GPT-4o Mini (OpenRouter) ~$0.0006/generation',
+				'openai/gpt-4o'                       => '🏆 GPT-4o (OpenRouter) ~$0.008/generation',
+				'anthropic/claude-3-haiku'            => '🤖 Claude 3 Haiku ~$0.0003/generation',
+				'anthropic/claude-3.5-sonnet'         => '✨ Claude 3.5 Sonnet ~$0.005/generation',
+				'meta-llama/llama-3.1-8b-instruct:free' => '🆓 Llama 3.1 8B — FREE',
+			),
+			'gemini'     => array(
+				'gemini-2.0-flash'   => '🆓 Gemini 2.0 Flash — FREE tier available',
+				'gemini-1.5-flash'   => '🆓 Gemini 1.5 Flash — FREE tier available',
+				'gemini-1.5-pro'     => '🏆 Gemini 1.5 Pro — Best quality',
+			),
+			'groq'       => array(
+				'llama-3.1-8b-instant'     => '🆓 Llama 3.1 8B Instant — FREE & ultra fast',
+				'llama-3.3-70b-versatile'  => '🏆 Llama 3.3 70B — Best quality FREE',
+				'mixtral-8x7b-32768'       => '⚡ Mixtral 8x7B — Fast & FREE',
+			),
 		);
 
-		// OpenRouter models (auto-used when key starts with sk-or-)
-		$or_models = array(
-			'openai/gpt-4o-mini'              => '⚡ GPT-4o Mini (OpenRouter) ~$0.0006/generation',
-			'openai/gpt-4o'                   => '🏆 GPT-4o (OpenRouter) ~$0.008/generation',
-			'anthropic/claude-3-haiku'        => '🤖 Claude 3 Haiku (OpenRouter) ~$0.0003/generation',
-			'anthropic/claude-3.5-sonnet'     => '✨ Claude 3.5 Sonnet (OpenRouter) ~$0.005/generation',
-			'meta-llama/llama-3.1-8b-instruct:free' => '🆓 Llama 3.1 8B (OpenRouter FREE)',
+		$all_models = $models_by_provider[ $provider ];
+
+		$provider_labels = array(
+			'openai'     => '🔵 OpenAI',
+			'openrouter' => '🟢 OpenRouter',
+			'gemini'     => '🔴 Google Gemini (FREE)',
+			'groq'       => '🟡 Groq (FREE)',
 		);
 
-		$is_openrouter = strpos( $api_key, 'sk-or-' ) === 0;
-		$all_models    = $is_openrouter ? $or_models : $models;
+		$provider_links = array(
+			'openai'     => 'platform.openai.com → API Keys',
+			'openrouter' => 'openrouter.ai/keys — cheaper rates, 100+ models',
+			'gemini'     => 'aistudio.google.com/apikey — FREE to use',
+			'groq'       => 'console.groq.com/keys — completely FREE',
+		);
 
 		$tones = array(
 			'neutral'   => 'Neutral (Default)',
@@ -112,13 +144,22 @@ class AIFAQ_Settings {
 
 						<table class="form-table" role="presentation">
 							<tr>
-								<th scope="row"><label for="aifaq_api_key"><?php esc_html_e( 'OpenAI API Key', 'ai-faq-generator' ); ?></label></th>
+								<th scope="row"><label for="aifaq_api_key"><?php esc_html_e( 'API Key', 'ai-faq-generator' ); ?></label></th>
 								<td>
 									<input type="password" id="aifaq_api_key" name="aifaq_api_key"
 										value="<?php echo esc_attr( $api_key ); ?>"
 										class="regular-text" autocomplete="new-password" />
+									<?php if ( ! empty( $api_key ) ) : ?>
+										<span style="margin-left:8px;color:#2e7d32;font-weight:600;">
+											✅ <?php echo esc_html( $provider_labels[ $provider ] ); ?> <?php esc_html_e( 'key detected', 'ai-faq-generator' ); ?>
+										</span>
+									<?php endif; ?>
 									<p class="description">
-										<?php esc_html_e( 'Get your key at platform.openai.com → API Keys', 'ai-faq-generator' ); ?>
+										<?php esc_html_e( 'Supports 4 providers — paste any key and it auto-detects:', 'ai-faq-generator' ); ?><br>
+										🔵 <strong>OpenAI</strong> — platform.openai.com (sk-...)<br>
+										🟢 <strong>OpenRouter</strong> — openrouter.ai/keys (sk-or-...) cheaper rates<br>
+										🔴 <strong>Gemini</strong> — aistudio.google.com/apikey (AIza...) <strong>FREE</strong><br>
+										🟡 <strong>Groq</strong> — console.groq.com/keys (gsk_...) <strong>FREE</strong>
 									</p>
 								</td>
 							</tr>
@@ -133,11 +174,9 @@ class AIFAQ_Settings {
 										<?php endforeach; ?>
 									</select>
 									<p class="description">
-										<?php if ( $is_openrouter ) : ?>
-											✅ <?php esc_html_e( 'OpenRouter key detected — showing OpenRouter models (cheaper rates).', 'ai-faq-generator' ); ?>
-										<?php else : ?>
-											<?php esc_html_e( 'For cheaper rates, use an OpenRouter key (sk-or-...) from openrouter.ai', 'ai-faq-generator' ); ?>
-										<?php endif; ?>
+										<?php esc_html_e( 'Models shown for detected provider:', 'ai-faq-generator' ); ?>
+										<strong><?php echo esc_html( $provider_labels[ $provider ] ); ?></strong>
+										— <?php echo esc_html( $provider_links[ $provider ] ); ?>
 									</p>
 								</td>
 							</tr>

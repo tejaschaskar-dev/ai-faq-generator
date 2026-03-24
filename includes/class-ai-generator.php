@@ -8,16 +8,37 @@ class AIFAQ_AI_Generator {
 	private $api_key;
 	private $model;
 	private $api_url;
+	private $provider;
 
 	public function __construct() {
-		$this->api_key = get_option( 'aifaq_api_key', '' );
-		$this->model   = get_option( 'aifaq_model', 'gpt-4o-mini' );
-		// Auto-detect OpenRouter vs OpenAI based on key prefix
+		$this->api_key  = get_option( 'aifaq_api_key', '' );
+		$this->model    = get_option( 'aifaq_model', 'gpt-4o-mini' );
+		$this->provider = $this->detect_provider();
+
+		$urls = array(
+			'openai'     => 'https://api.openai.com/v1/chat/completions',
+			'openrouter' => 'https://openrouter.ai/api/v1/chat/completions',
+			'groq'       => 'https://api.groq.com/openai/v1/chat/completions',
+			'gemini'     => 'https://generativelanguage.googleapis.com/v1beta/models/' . $this->model . ':generateContent?key=' . $this->api_key,
+		);
+
+		$this->api_url = $urls[ $this->provider ];
+	}
+
+	/**
+	 * Auto-detect provider from API key prefix.
+	 */
+	private function detect_provider() {
 		if ( strpos( $this->api_key, 'sk-or-' ) === 0 ) {
-			$this->api_url = 'https://openrouter.ai/api/v1/chat/completions';
-		} else {
-			$this->api_url = 'https://api.openai.com/v1/chat/completions';
+			return 'openrouter';
 		}
+		if ( strpos( $this->api_key, 'AIza' ) === 0 ) {
+			return 'gemini';
+		}
+		if ( strpos( $this->api_key, 'gsk_' ) === 0 ) {
+			return 'groq';
+		}
+		return 'openai';
 	}
 
 	/**
@@ -52,6 +73,14 @@ class AIFAQ_AI_Generator {
 		}
 
 		$prompt = $this->build_prompt( $content, $count, $post->post_title, $tone );
+
+		if ( 'gemini' === $this->provider ) {
+			$response = $this->call_gemini( $prompt );
+			if ( is_wp_error( $response ) ) {
+				return $response;
+			}
+			return $this->parse_gemini_response( $response );
+		}
 
 		$response = $this->call_openai( $prompt );
 		if ( is_wp_error( $response ) ) {
@@ -146,6 +175,85 @@ class AIFAQ_AI_Generator {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Send a request to the Gemini API.
+	 */
+	private function call_gemini( $prompt ) {
+		$body = array(
+			'contents'         => array(
+				array(
+					'parts' => array(
+						array( 'text' => $prompt['system'] . "\n\n" . $prompt['user'] ),
+					),
+				),
+			),
+			'generationConfig' => array(
+				'temperature'     => 0.4,
+				'maxOutputTokens' => 2000,
+			),
+		);
+
+		$response = wp_remote_post(
+			$this->api_url,
+			array(
+				'timeout' => 60,
+				'headers' => array(
+					'Content-Type' => 'application/json',
+				),
+				'body'    => wp_json_encode( $body ),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error( 'http_error', $response->get_error_message() );
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 !== (int) $code ) {
+			$message = isset( $data['error']['message'] ) ? $data['error']['message'] : __( 'Unknown Gemini API error.', 'ai-faq-generator' );
+			return new WP_Error( 'api_error', $message );
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Parse Gemini API response format.
+	 */
+	private function parse_gemini_response( $data ) {
+		$text = isset( $data['candidates'][0]['content']['parts'][0]['text'] ) ? trim( $data['candidates'][0]['content']['parts'][0]['text'] ) : '';
+
+		if ( empty( $text ) ) {
+			return new WP_Error( 'empty_response', __( 'Gemini returned an empty response. Please try again.', 'ai-faq-generator' ) );
+		}
+
+		$text  = preg_replace( '/^```(?:json)?\s*/i', '', $text );
+		$text  = preg_replace( '/\s*```$/', '', $text );
+		$faqs  = json_decode( $text, true );
+
+		if ( ! is_array( $faqs ) || empty( $faqs ) ) {
+			return new WP_Error( 'parse_error', __( 'Could not parse Gemini response. Please try again.', 'ai-faq-generator' ) );
+		}
+
+		$clean = array();
+		foreach ( $faqs as $item ) {
+			if ( ! empty( $item['question'] ) && ! empty( $item['answer'] ) ) {
+				$clean[] = array(
+					'question' => sanitize_text_field( $item['question'] ),
+					'answer'   => wp_kses_post( $item['answer'] ),
+				);
+			}
+		}
+
+		if ( empty( $clean ) ) {
+			return new WP_Error( 'no_faqs', __( 'No valid FAQs returned by Gemini. Please try again.', 'ai-faq-generator' ) );
+		}
+
+		return $clean;
 	}
 
 	/**
