@@ -50,8 +50,16 @@ class AIFAQ_Metabox {
 			AIFAQ_VERSION,
 			true
 		);
+		// Use the current request host to support non-standard ports (e.g. Local by Flywheel).
+		$ajax_url = admin_url( 'admin-ajax.php' );
+		if ( isset( $_SERVER['HTTP_HOST'] ) ) {
+			$parsed   = wp_parse_url( $ajax_url );
+			$ajax_url = ( isset( $parsed['scheme'] ) ? $parsed['scheme'] : 'http' ) . '://' .
+				sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) .
+				( isset( $parsed['path'] ) ? $parsed['path'] : '/wp-admin/admin-ajax.php' );
+		}
 		wp_localize_script( 'aifaq-admin', 'AIFAQ', array(
-			'ajax_url' => admin_url( 'admin-ajax.php' ),
+			'ajax_url' => $ajax_url,
 			'nonce'    => wp_create_nonce( 'aifaq_generate' ),
 			'i18n'     => array(
 				'generating'   => __( 'Generating FAQs…', 'ai-faq-generator' ),

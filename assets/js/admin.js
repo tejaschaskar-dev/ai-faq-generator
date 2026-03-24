@@ -6,6 +6,10 @@
 
 	/* ── Initialise ─────────────────────────────────── */
 	$(function () {
+		// Fix AJAX URL to use correct host:port (handles Local by Flywheel non-standard ports)
+		if ( AIFAQ && AIFAQ.ajax_url ) {
+			AIFAQ.ajax_url = AIFAQ.ajax_url.replace(/^https?:\/\/[^\/]+/, window.location.origin);
+		}
 		initRowIndex();
 		bindEvents();
 		initSortable();
@@ -53,10 +57,39 @@
 	/* ── Generate ─────────────────────────────────── */
 	function handleGenerate() {
 		var $btn    = $('#aifaq-generate-btn');
-		var postId  = $btn.data('post-id');
+		var postId  = parseInt($btn.data('post-id'), 10);
 		var hasFaqs = $btn.data('has-faqs') === 1 || $btn.data('has-faqs') === '1';
 		var count   = parseInt($('#aifaq_count_override').val(), 10) || 5;
 		var tone    = $('#aifaq_tone_override').val() || 'neutral';
+
+		// Post not saved yet — save it first via Gutenberg then retry
+		if (!postId || postId === 0) {
+			setStatus('loading', '💾 Saving post first…');
+			$btn.prop('disabled', true);
+
+			// Try Gutenberg's savePost
+			if (window.wp && wp.data && wp.data.dispatch) {
+				wp.data.dispatch('core/editor').savePost().then(function () {
+					var newId = wp.data.select('core/editor').getCurrentPostId();
+					if (newId && newId > 0) {
+						$btn.data('post-id', newId);
+						setStatus('', '');
+						$btn.prop('disabled', false);
+						handleGenerate();
+					} else {
+						setStatus('error', 'Error: Please save the post manually first, then click Generate FAQs.');
+						$btn.prop('disabled', false);
+					}
+				}).catch(function () {
+					setStatus('error', 'Error: Please save the post manually first, then click Generate FAQs.');
+					$btn.prop('disabled', false);
+				});
+			} else {
+				setStatus('error', 'Error: Please save the post as a draft first, then click Generate FAQs.');
+				$btn.prop('disabled', false);
+			}
+			return;
+		}
 
 		// Ask confirmation before regenerating existing FAQs
 		if (hasFaqs && !window.confirm(AIFAQ.i18n.confirm_regen)) {
